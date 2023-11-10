@@ -1,0 +1,13 @@
+.cache/
+.DS_Store
+.local/
+config.el
+auto-save-list/
+elpa/
+elpaca/
+org-persist/
+projectile-bookmarks*
+projects
+recentf
+snippets/
+transient/

@@ -1,0 +1,484 @@
+#+TITLE: Emacs Config
+#+AUTHOR: zhlhz
+#+OPTIONS: toc:2
+#+DESCRIPTION: zhlhz's personal Emacs config
+
+* TABLE OF CONTENTS                                                 :toc:
+- [[#first-loaded][FIRST LOADED]]
+  - [[#add-scripts-directory-to-path][add scripts directory to path]]
+- [[#package-manager][PACKAGE MANAGER]]
+- [[#system-default][SYSTEM DEFAULT]]
+- [[#personal-info][PERSONAL INFO]]
+- [[#appearance][APPEARANCE]]
+  - [[#emacs][emacs]]
+  - [[#all-the-icons][all the icons]]
+  - [[#theme][theme]]
+- [[#dashboard][DASHBOARD]]
+- [[#company][COMPANY]]
+- [[#evil][EVIL]]
+- [[#vertico--consult][VERTICO / CONSULT]]
+- [[#which-key][WHICH KEY]]
+- [[#org-mode][ORG MODE]]
+  - [[#toc][toc]]
+  - [[#indent][indent]]
+  - [[#org-tempo][org-tempo]]
+- [[#tldr][TLDR]]
+
+* FIRST LOADED
+** add scripts directory to path
+#+BEGIN_SRC emacs-lisp
+  (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+#+END_SRC
+
+* PACKAGE MANAGER
+#+BEGIN_SRC emacs-lisp
+  (defvar elpaca-installer-version 0.6)
+  (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
+  (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+  (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
+  (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+				:ref nil
+				:files (:defaults (:exclude "extensions"))
+				:build (:not elpaca--activate-package)))
+  (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
+	 (build (expand-file-name "elpaca/" elpaca-builds-directory))
+	 (order (cdr elpaca-order))
+	 (default-directory repo))
+    (add-to-list 'load-path (if (file-exists-p build) build repo))
+    (unless (file-exists-p repo)
+      (make-directory repo t)
+      (when (< emacs-major-version 28) (require 'subr-x))
+      (condition-case-unless-debug err
+	  (if-let ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+		   ((zerop (call-process "git" nil buffer t "clone"
+					 (plist-get order :repo) repo)))
+		   ((zerop (call-process "git" nil buffer t "checkout"
+					 (or (plist-get order :ref) "--"))))
+		   (emacs (concat invocation-directory invocation-name))
+		   ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+					 "--eval" "(byte-recompile-directory \".\" 0 'force)")))
+		   ((require 'elpaca))
+		   ((elpaca-generate-autoloads "elpaca" repo)))
+	      (progn (message "%s" (buffer-string)) (kill-buffer buffer))
+	    (error "%s" (with-current-buffer buffer (buffer-string))))
+	((error) (warn "%s" err) (delete-directory repo 'recursive))))
+    (unless (require 'elpaca-autoloads nil t)
+      (require 'elpaca)
+      (elpaca-generate-autoloads "elpaca" repo)
+      (load "./elpaca-autoloads")))
+  (add-hook 'after-init-hook #'elpaca-process-queues)
+  (elpaca `(,@elpaca-order))
+
+  ;; Install use-package support
+  (elpaca elpaca-use-package
+    ;; Enable :elpaca use-package keyword.
+    (elpaca-use-package-mode)
+    ;; Assume :elpaca t unless otherwise specified.
+    (setq elpaca-use-package-by-default t))
+
+  ;; Block until current queue processed.
+  (elpaca-wait)
+
+  ;;When installing a package which modifies a form used at the top-level
+  ;;(e.g. a package which adds a use-package key word),
+  ;;use `elpaca-wait' to block until that package has been installed/configured.
+  ;;For example:
+  ;;(use-package general :demand t)
+  ;;(elpaca-wait)
+
+  ;;Turns off elpaca-use-package-mode current declartion
+  ;;Note this will cause the declaration to be interpreted immediately (not deferred).
+  ;;Useful for configuring built-in emacs features.
+  ;;(use-package emacs :elpaca nil :config (setq ring-bell-function #'ignore))
+
+  ;; Don't install anything. Defer execution of BODY
+  ;;(elpaca nil (message "deferred"))
+
+  (eval-and-compile 
+    (setq use-package-always-ensure t)
+    (setq use-package-expand-minimally t)
+    (setq use-package-enable-imenu-support t))
+
+#+END_SRC
+
+* SYSTEM DEFAULT
+#+BEGIN_SRC emacs-lisp
+  (defconst sys/macp
+    (eq system-type 'darwin))
+  (defconst sys/linuxp
+    (eq system-type 'gnu/linux))
+  (defconst sys/win32p
+    (eq system-type 'window-nt))
+  (cond (sys/macp
+	 (setq mac-option-modifier 'super
+	       mac-command-modifier 'meta)))
+  (when sys/macp
+    (setq command-line-ns-option-alist nil))
+  (unless sys/linuxp
+    (setq command-line-x-option-alist nil))
+
+  (setq gc-cons-threshold (* 100 1024 1024))
+  (setq read-process-output-max (* 5 1024 1024))
+  (setq inhibit-compacting-font-caches t)
+  (set-language-environment "UTF-8")
+
+  (global-auto-revert-mode 1)
+  (setq create-lockfiles nil)
+  (setq make-backup-files nil)
+
+  (use-package benchmark-init
+    :ensure t
+    :demand t
+    :config
+    ;; To disable collection of benchmark data after init is done.
+    (add-hook 'after-init-hook 'benchmark-init/deactivate)) 
+  (setq bookmark-file (expand-file-name ".cache/bookmarks" user-emacs-directory))
+
+#+END_SRC
+
+* PERSONAL INFO
+#+BEGIN_SRC emacs-lisp
+  (setq user-full-name "zhlhz"
+	user-mail-address "hzschwarzschild@gmail.com")
+#+END_SRC
+* APPEARANCE
+emacs appearance
+** emacs
+#+BEGIN_SRC emacs-lisp
+  (tool-bar-mode 0)
+  (scroll-bar-mode 0)
+  (menu-bar-mode 0)
+  (blink-cursor-mode 0)
+  (fringe-mode 1)
+  (global-hl-line-mode 1)
+  (toggle-frame-maximized)
+  (global-display-line-numbers-mode 1)
+  (global-visual-line-mode t)
+  (setq inhibit-startup-screen t)
+
+  (delete-selection-mode 1)
+  (electric-indent-mode -1)
+  (electric-pair-mode 1)
+  (add-hook 'org-mode-hook (lambda () (setq-local electric-pair-inhibit-predicate `(lambda (c) (if (char-equal c ?<) t (,electric-pair-inhibit-predicate c))))))
+
+  (savehist-mode t)
+  (setq savehist-file (expand-file-name ".cache/savehist" user-emacs-directory))
+#+END_SRC
+** rainbow delimiters
+#+begin_src emacs-lisp
+  (use-package rainbow-delimiters
+    :config
+    :hook (emacs-lisp-mode . rainbow-delimiters-mode))
+  (use-package pulsar
+    :init (pulsar-global-mode t)
+    :config
+    (setq pulsar-pulse t
+	  pulsar-delay 0.055
+	  pulsar-iterations 5
+	  pulsar-face 'pulsar-blue
+	  pulsar-highlight-face 'pulsar-yellow)
+    (pulsar-global-mode 1)
+    :hook ((consult-after-jump . pulsar-recenter-top)
+	   (consult-after-jump-hook . pulsar-reveal-entry)))
+#+end_src
+** all the icons
+A utility package to collect various Icon Fonts and propertize them within Emacs.
+#+BEGIN_SRC emacs-lisp
+  (use-package all-the-icons
+    :ensure t
+    :if (display-graphic-p))
+  (use-package all-the-icons-dired
+    :hook (dired-mode . (lambda () (all-the-icons-dired-mode t))))
+#+END_SRC
+** theme
+use doom-one theme
+#+BEGIN_SRC emacs-lisp
+  (use-package doom-themes
+    :config
+    (setq doom-themes-enable-bold t
+	  doom-themes-enable-italic t)
+    (load-theme 'doom-one t)
+    (doom-themes-visual-bell-config)
+    (doom-themes-neotree-config)
+    (doom-themes-org-config))
+
+  (use-package doom-modeline
+    :hook (after-init . doom-modeline-mode)
+    :init (doom-modeline-mode t)
+    :config
+    (setq doom-modeline-icon nil
+	  doom-modelline-lsp t))
+
+  (use-package solaire-mode
+    :config
+    (solaire-global-mode +1))
+  (set-face-attribute 'default nil
+		      :font "Sarasa Mono SC"
+		      :height 210
+		      :weight 'medium)
+#+END_SRC
+
+* DASHBOARD
+#+begin_src emacs-lisp
+  (use-package dashboard
+    :ensure t
+    :init
+    (setq dashboard-center-content t)
+    (setq dashboard-banner-logo-title "~ Happy Coding ~")
+    (setq dashboard-startup-banner 'logo)
+    (setq initial-buffer-choice 'dashboard-open)
+    (setq dashboard-items '((recents . 5)
+			    (agenda . 5)
+			    (bookmarks . 3)
+			    (projects . 3)
+			    (registers . 3)))
+    :custom
+    (dashboard-modify-heading-icons '((recents . "file-text")
+				      (bookmarks . "book")))
+    :config
+    (dashboard-setup-startup-hook))
+
+#+end_src
+
+* COMPANY
+#+BEGIN_SRC emacs-lisp
+  (use-package company
+    :init (global-company-mode t)
+    :custom
+    (company-begin-commands '(self-insert-command))
+    (company-idle-delay .1)
+    (company-minimum-prefix-length 2)
+    (company-show-number t)
+    (company-tooltip-align-annotations 't))
+  (use-package company-box
+    :after company
+    :hook (company-mode . company-box-mode))
+#+END_SRC
+
+#+RESULTS:
+
+* EVIL
+#+BEGIN_SRC emacs-lisp
+  (use-package evil
+    :init
+    (setq evil-want-integration t
+	  evil-want-keybinding nil
+	  evil-vsplit-window-right t
+	  evil-split-window-below t
+	  evil-undo-sysmte 'undo-redo)
+    (evil-mode))
+  (use-package evil-collection
+    :after evil
+    :config
+    (add-to-list 'evil-collection-mode-list 'help)
+    (evil-collection-init))
+#+END_SRC
+
+* SEARCH
+#+begin_src emacs-lisp
+  (use-package rg
+    :if (executable-find "rg"))
+#+end_src
+* TERMINAL
+if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
+#+begin_src emacs-lisp
+    (use-package vterm
+      :config
+      (setq shell-file-name "/bin/sh"
+	    vterm-max-scrollback 5000)
+	(evil-define-key 'insert vterm-mode-map (kbd "C-c")      #'vterm--self-insert)
+	(evil-define-key 'insert vterm-mode-map (kbd "C-d")      #'vterm--self-insert)
+	(evil-define-key 'insert vterm-mode-map (kbd "C-a")      #'vterm--self-insert)
+	(evil-define-key 'insert vterm-mode-map (kbd "C-e")      #'vterm--self-insert))
+    (use-package vterm-toggle
+      :after vterm
+      :config
+      (evil-define-key 'normal vterm-mode-map (kbd "<escape>") 'vterm--self-insert)
+      (setq vterm-toggle-fullscreen-p nil)
+      (setq vterm-toggle-scope 'project)
+      (add-to-list 'display-buffer-alist
+		   '((lambda (buffer-or-name _)
+		       (let ((buffer (get-buffer buffer-or-name)))
+			 (with-current-buffer buffer
+			   (or (equal major-mode 'vterm-mode)
+			       (string-prefix-p vterm-buffer-name (buffer-name buffer))))))
+		     (display-buffer-reuse-window display-buffer-at-bottom)
+		     ;;(display-buffer-reuse-window display-buffer-in-direction)
+		     ;;display-buffer-in-direction/direction/dedicated is added in emacs27
+		     (direction . bottom)
+		     ;;(dedicated . t) ;dedicated is supported in emacs27
+		     (reusable-frames . visible)
+		     (window-height . 0.4))))
+#+end_src
+* SUDO EDIT
+#+begin_src emacs-lisp
+  (use-package sudo-edit)
+#+end_src
+* PROJECTILE
+#+begin_src emacs-lisp
+  (use-package projectile
+    :config (projectile-mode 1)
+    (setq projectile-cache-file (expand-file-name ".cache/projectile.cache" user-emacs-directory)
+	  projectile-enable-caching t)
+    (projectile-register-project-type 'xmake '("xmake.lua")
+				      :compile "xmake"
+				      :run "xmake r")
+    (setq projectile-completion-system 'default))
+#+end_src
+* VCS
+#+begin_src emacs-lisp
+  (use-package magit
+  :ensure nil
+  :init
+    (setq transient-history-file (expand-file-name ".cache/transient/history.el" user-emacs-directory)
+	  transient-levels-file (expand-file-name ".cache/transient/levels.el" user-emacs-directory)
+	  transient-values-file (expand-file-name ".cache/transient/values.el" user-emacs-directory))
+    :config
+    (setq magit-revision-show-gravatars t)
+    )
+
+#+end_src
+* VERTICO / CONSULT
+#+BEGIN_SRC emacs-lisp
+  (defun embark-export-write ()
+    "Export the current vertico results to a writable buffer if possible.
+      Supports exporting consult-grep to wgrep, file to wdeired, and consult-location to occur-edit"
+    (interactive)
+    (require 'embark)
+    (require 'wgrep)
+    (let* ((edit-command
+	    (pcase-let ((`(,type . ,candidates)
+			 (run-hook-with-args-until-success 'embark-candidate-collectors)))
+	      (pcase type
+		('consult-grep #'wgrep-change-to-wgrep-mode)
+		('file #'wdired-change-to-wdired-mode)
+		('consult-location #'occur-edit-mode)
+		(x (user-error "embark category %S doesn't support writable export" x)))))
+	   (embark-after-export-hook `(,@embark-after-export-hook ,edit-command)))
+      (embark-export)))
+  (use-package vertico
+    :init (vertico-mode t)
+    :config
+    (setq vertico-resize nil
+	  vertico-count 17
+	  vertico-cycle t))
+  (use-package orderless
+    :init
+    (setq completion-styles '(orderless basic)))
+  (use-package consult
+    :config
+    (setq consult-narrow-key "<"
+	  consult-line-numbers-widen t
+	  consult-async-min-input 2
+	  consult-async-refresh-delay 0.15
+	  consult-async-input-throttle 0.2
+	  consult-async-input-debounce 0.1))
+  (use-package embark
+    :bind (("C-;" . embark-act)
+	   ("C-x C-e" . embark-export-write))
+    :config
+    (setq prefix-help-command 'embark-prefix-help-command))
+  (use-package embark-consult
+    :hook
+    (embark-collect-mode . consult-preview-at-point-mode))
+  (use-package marginalia
+    :init (marginalia-mode))
+  (use-package wgrep)
+
+#+END_SRC
+* WHICH KEY
+#+BEGIN_SRC emacs-lisp
+(use-package which-key
+  :init
+    (which-key-mode 1)
+  :diminish
+  :config
+  (setq which-key-side-window-location 'bottom
+	  which-key-sort-order #'which-key-key-order-alpha
+	  which-key-allow-imprecise-window-fit nil
+	  which-key-sort-uppercase-first nil
+	  which-key-add-column-padding 1
+	  which-key-max-display-columns nil
+	  which-key-min-display-lines 6
+	  which-key-side-window-slot -10
+	  which-key-side-window-max-height 0.25
+	  which-key-idle-delay 0.8
+	  which-key-max-description-length 25
+	  which-key-allow-imprecise-window-fit nil
+	  which-key-separator " → " ))
+#+END_SRC
+
+* GENERAL KEYBINDINGS
+#+begin_src emacs-lisp
+  (use-package general
+    :config
+    (general-evil-setup)
+    (general-create-definer leader-keys
+      :states '(normal insert visual emacs)
+      :keymaps 'override
+      :prefix "SPC"
+      :global-prefix "M-SPC")
+
+    (leader-keys
+      "." '(find-file :wk "Find file")
+      "TAB TAB" '(comment-line :wk "Comment lines"))
+
+    (leader-keys
+      "b" '(:ignore t :wk "Bookmarks/Buffers")
+      "b b" '(switch-to-buffer :wk "Previous buffer")
+      "b p" '(previous-buffer :wk "Previous buffer")
+      "b n" '(next-buffer :wk "Next buffer")
+      "b i" '(ibuffer :wk "Ibuffer"))
+
+    (leader-keys
+      "r" '(:ignore t :wk "Reload")
+      "r r" '((lambda () (interactive)
+		(load-file "~/.emacs.d/init.el")
+		(ignore (elpaca-process-queues)))
+	      :wk "Reload emacs config"))
+    (leader-keys
+      "p" '(:ignore t :wk "Project")
+      "p f" '(projectile-find-file :wk "Find file in Project")
+      "p c" '(projectile-compile-project :wk "Project compile")
+      "p r" '(projectile-run-project :wk "Project run"))
+    (leader-keys
+      "t" '(:ignore t :wk "Toggle")
+      "t v" '(vterm-toggle :wk "Toggle vterm")
+      "t m" '(toggle-frame-maximized :wk "Toggle frame max size")
+      "t M" '(toggle-frame-fullscreen :wk "Toggle frame fullscreen"))
+
+    (leader-keys
+      "h" '(:ignore t :wk "Help")
+      "h f" '(describe-function :wk "Describe function")
+      "h v" '(describe-variable :wk "Describe veriable")
+      "h k" '(describe-key :wk "Describe key")
+      "h m" '(describe-mode :wk "Describe mode"))
+
+    (leader-keys
+      "s" '(:ignore t :wk "Search")
+      "s b" '(consult-line :wk "search in current buffer")
+      "s i" '(consult-imenu :wk "search symbol in current buffer")
+      "s I" '(consult-imenu-multi :wk "search symbol in all buffers"))
+
+    )
+
+
+#+end_src
+* ORG MODE
+** toc
+#+BEGIN_SRC  emacs-lisp
+  (use-package toc-org
+    :commands toc-org-enable
+    :hook (org . toc-rog-enable))
+#+END_SRC
+** indent
+#+BEGIN_SRC emacs-lisp
+  (eval-after-load 'org-indent '(diminish 'org-indent-mode))
+#+END_SRC
+** org-tempo
+#+BEGIN_SRC emacs-lisp
+  (require 'org-tempo)
+#+END_SRC
+
+
+* TLDR
