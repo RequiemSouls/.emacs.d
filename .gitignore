@@ -11,3 +11,6 @@ projects
 recentf
 snippets/
 transient/
+*~undo-tree~
+tree-sitter/
+places
