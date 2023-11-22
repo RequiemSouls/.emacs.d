@@ -155,11 +155,19 @@ emacs appearance
   (global-display-line-numbers-mode 1)
   (global-visual-line-mode t)
   (setq inhibit-startup-screen t)
+  (toggle-truncate-lines -1)
+  (visual-line-mode -1)
 
   (delete-selection-mode 1)
   (electric-indent-mode -1)
   (electric-pair-mode 1)
   (add-hook 'org-mode-hook (lambda () (setq-local electric-pair-inhibit-predicate `(lambda (c) (if (char-equal c ?<) t (,electric-pair-inhibit-predicate c))))))
+
+  ;; color compilation buffer
+  (defun ansi-colorize-buffer ()
+    (let ((buffer-read-only nil))
+      (ansi-color-apply-on-region (point-min) (point-max))))
+  (add-hook 'compilation-filter-hook 'ansi-colorize-buffer)
 
   (use-package savehist
     :ensure nil
@@ -236,7 +244,7 @@ use doom-one theme
     (solaire-global-mode +1))
   (set-face-attribute 'default nil
 		      :font "Sarasa Mono SC"
-		      :height 210
+		      :height 180
 		      :weight 'medium)
 #+END_SRC
 
@@ -538,7 +546,7 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
       "p r" '(projectile-run-project :wk "Project run"))
     (leader-keys
       "t" '(:ignore t :wk "Toggle")
-      "t w" '(visual-line-mode :wk "Toggle wrap line")
+      "t w" '(toggle-truncate-lines :wk "Toggle wrap line")
       "t v" '(vterm-toggle :wk "Toggle vterm")
       "t m" '(toggle-frame-maximized :wk "Toggle frame max size")
       "t M" '(toggle-frame-fullscreen :wk "Toggle frame fullscreen"))
@@ -669,4 +677,11 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
   (use-package window-numbering
     :init
     (window-numbering-mode t))
+#+end_src
+
+* LANGUAGE
+#+begin_src emacs-lisp
+  (use-package lua-mode
+    :init
+    (setq lua-intent 2))
 #+end_src
