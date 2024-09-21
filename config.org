@@ -32,7 +32,7 @@
 
 * PACKAGE MANAGER
 #+BEGIN_SRC emacs-lisp
-      (defvar elpaca-installer-version 0.6)
+      (defvar elpaca-installer-version 0.7)
       (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
       (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
       (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
@@ -124,10 +124,10 @@
   (global-auto-revert-mode 1)
   (setq create-lockfiles nil)
   (setq make-backup-files nil)
+  (setq inhibit-startup-message t)
+  (setq auto-save-default nil)
 
   (use-package benchmark-init
-    :ensure t
-    :demand t
     :config
     ;; To disable collection of benchmark data after init is done.
     (add-hook 'after-init-hook 'benchmark-init/deactivate)) 
@@ -152,6 +152,7 @@ emacs appearance
   (global-hl-line-mode 1)
   ;; set current frame maximized
   (set-frame-parameter nil 'fullscreen 'maximized)
+  (column-number-mode)
   (global-display-line-numbers-mode 1)
   (global-visual-line-mode t)
   (setq inhibit-startup-screen t)
@@ -170,8 +171,7 @@ emacs appearance
   (add-hook 'compilation-filter-hook 'ansi-colorize-buffer)
 
   (use-package savehist
-    :ensure nil
-    :elpaca nil
+:ensure nil
     :hook (after-init . savehist-mode)
     :config
     (setq savehist-file (expand-file-name ".cache/savehist" user-emacs-directory)
@@ -186,8 +186,7 @@ emacs appearance
     )
 
   (use-package saveplace
-    :ensure nil
-    :elpaca nil
+:ensure nil
     :init (save-place-mode t)
     :config (setq save-place-file (expand-file-name ".cache/places" user-emacs-directory)))
 
@@ -215,22 +214,20 @@ emacs appearance
 A utility package to collect various Icon Fonts and propertize them within Emacs.
 #+BEGIN_SRC emacs-lisp
   (use-package all-the-icons
-    :ensure t
     :if (display-graphic-p))
-  (use-package all-the-icons-dired
-    :hook (dired-mode . (lambda () (all-the-icons-dired-mode t))))
 #+END_SRC
 ** theme
 use doom-one theme
 #+BEGIN_SRC emacs-lisp
+  (use-package catppuccin-theme)
   (use-package doom-themes
     :config
     (setq doom-themes-enable-bold t
 	  doom-themes-enable-italic t)
-    (load-theme 'doom-one t)
     (doom-themes-visual-bell-config)
     (doom-themes-neotree-config)
-    (doom-themes-org-config))
+    (doom-themes-org-config)
+    (load-theme 'catppuccin t))
 
   (use-package doom-modeline
     :hook (after-init . doom-modeline-mode)
@@ -244,14 +241,15 @@ use doom-one theme
     (solaire-global-mode +1))
   (set-face-attribute 'default nil
 		      :font "Sarasa Mono SC"
-		      :height 180
+		      :height 150
 		      :weight 'medium)
+  (setq display-time-format "%l:%M %p %b %d W%U"
+	display-time-load-average-threshold 0.0)
 #+END_SRC
 
 * DASHBOARD
 #+begin_src emacs-lisp
   (use-package dashboard
-    :ensure t
     :init
     (setq dashboard-center-content t)
     (setq dashboard-banner-logo-title "~ Happy Coding ~")
@@ -395,13 +393,17 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
 * PROJECTILE
 #+begin_src emacs-lisp
   (use-package projectile
-    :config (projectile-mode 1)
-    (setq projectile-cache-file (expand-file-name ".cache/projectile.cache" user-emacs-directory)
-	  projectile-enable-caching t)
-    (projectile-register-project-type 'xmake '("xmake.lua")
-				      :compile "xmake"
-				      :run "xmake r")
-    (setq projectile-completion-system 'default))
+    :init
+    (when (file-directory-p "~/Documents/projects")
+      (setq projectile-project-search-path '("~/Documents/projects")))
+    (setq projectile-switch-project-action #'projectile-dired)
+  :config (projectile-mode 1)
+  (setq projectile-cache-file (expand-file-name ".cache/projectile.cache" user-emacs-directory)
+	projectile-enable-caching t)
+  (projectile-register-project-type 'xmake '("xmake.lua")
+				    :compile "xmake"
+				    :run "xmake r")
+  (setq projectile-completion-system 'default))
   (defun search-project-for-symbol-at-point ()
     (interactive)
     (if (use-region-p)
@@ -422,12 +424,9 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
 #+end_src
 * VCS
 #+begin_src emacs-lisp
+(use-package transient)
   (use-package magit
-  :ensure nil
-  :init
-    (setq transient-history-file (expand-file-name ".cache/transient/history.el" user-emacs-directory)
-	  transient-levels-file (expand-file-name ".cache/transient/levels.el" user-emacs-directory)
-	  transient-values-file (expand-file-name ".cache/transient/values.el" user-emacs-directory))
+    :init
     :config
     (setq magit-revision-show-gravatars t)
     )
@@ -506,6 +505,46 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
 	  which-key-separator " → " ))
 #+END_SRC
 
+* HELPFUL
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package helpful
+  ;;   :custom
+  ;;   (counsel-describe-function-function #'helpful-callable)
+  ;;   (counsel-describe-variable-function #'helpful-variable)
+  ;;   :bind
+  ;;   ([remap describe-function] . counsel-describe-function)
+  ;;   ([remap describe-variable] . counsel-describe-variable)
+  ;;   ([remap describe-key] . helpful-key)
+  ;;   ([remap describe-command] . helpful-command))
+#+END_SRC
+
+* DIRED
+#+BEGIN_SRC emacs-lisp
+(use-package dired-open
+  :config
+  (setq dired-open-extensions '(("gif" . "sxiv")
+                                ("jpg" . "sxiv")
+                                ("png" . "sxiv")
+                                ("mkv" . "mpv")
+                                ("mp4" . "mpv"))))
+(use-package peep-dired
+  :after dired evil
+  :hook (evil-normalize-keymaps . peep-dired-hook)
+  :config
+    (evil-define-key 'normal dired-mode-map (kbd "h") 'dired-up-directory)
+    (evil-define-key 'normal dired-mode-map (kbd "l") 'dired-open-file) ; use dired-find-file instead if not using dired-open package
+    (evil-define-key 'normal peep-dired-mode-map (kbd "j") 'peep-dired-next-file)
+    (evil-define-key 'normal peep-dired-mode-map (kbd "k") 'peep-dired-prev-file))
+#+END_SRC
+
+* FLYCHECK
+#+BEGIN_SRC emacs-lisp
+(use-package flycheck
+  :defer t
+  :diminish
+  :init (global-flycheck-mode))
+#+END_SRC
+
 * GENERAL KEYBINDINGS
 #+begin_src emacs-lisp
   (use-package general
@@ -515,15 +554,34 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
       :states '(normal insert visual emacs)
       :keymaps 'override
       :prefix "SPC"
-      :global-prefix "M-SPC")
+      :global-prefix "C-SPC")
 
     (leader-keys
       "SPC" '(execute-extended-command :wk "M-x")
       "." '(find-file :wk "Find file")
-      "f f" '(find-file :wk "Find file")
       "g g" '(magit :wk "Magit")
-      "f r" '(recentf :wk "Recent file")
       "TAB TAB" '(comment-line :wk "Comment lines"))
+
+    (leader-keys
+      "f" '(:ignore t :wk "File")
+					  ; "fl" '(counsel-locate :wk "locate file")
+      "f d" '(dired-jump :wk "dired current dired")
+      "f D" '(dired :wk "dired")
+      "f o" '(projectile-find-other-file :wk "switch source file to header file")
+      "f f" '(find-file :wk "Find file")
+      "f r" '(recentf :wk "Recent file"))
+
+    (leader-keys
+      "g" '(:ignore t :wk "magit")
+      "gs" '(magit-status :wk "status")
+      "gd" '(magit-diff-unstaged :wk "diff unstaged")
+      "gc" '(magit-branch-or-checkout :wk "checkout")
+      "glc" '(magit-log-current :wk "log current")
+      "glf" '(magit-log-buffer-file :wk "log buffer")
+      "grb" '(magit-branch :wk "branch")
+      "gP" '(magit-push-current :wk "push")
+      "gp" '(magit-pull-branch :wk "pull")
+      "gf" '(magit-fetch-all :wk "fecth all"))
 
     (leader-keys
       "b" '(:ignore t :wk "Bookmarks/Buffers")
@@ -546,6 +604,7 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
       "p r" '(projectile-run-project :wk "Project run"))
     (leader-keys
       "t" '(:ignore t :wk "Toggle")
+      "t t" '(treemacs :wk "treemacs")
       "t w" '(toggle-truncate-lines :wk "Toggle wrap line")
       "t v" '(vterm-toggle :wk "Toggle vterm")
       "t m" '(toggle-frame-maximized :wk "Toggle frame max size")
@@ -576,6 +635,10 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
       "3" '(select-window-3 :wk "Window 3")
       "4" '(select-window-4 :wk "Window 4")
       "5" '(select-window-5 :wk "Window 5")
+      "w k" '(evil-window-up :wk "window up")
+      "w j" '(evil-window-down :wk "window down")
+      "w l" '(evil-window-right :wk "window right")
+      "w h" '(evil-window-left :wk "window right")
       "w c" '(evil-window-delete :wk "Window delete")
       "w v" '(evil-window-vsplit :wk "Window vsplit")
       "w s" '(evil-window-split :wk "Window split"))
@@ -607,13 +670,112 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
 #+end_src
 * EGLOT
 #+begin_src emacs-lisp
-  (use-package eglot
-    :config
-    (add-to-list 'eglot-server-programs '((c++-mode c-mode) "clangd"))
-    :hook ((c-mode . eglot-ensure)
-	   (c++-mode . eglot-ensure)))
+(use-package lsp-mode
+  :hook (lsp-mode . lsp-enable-which-key-integration)
+  :init
+  (setq lsp-keymap-prefix "C-c l"))
+(use-package lsp-treemacs
+  :after treemacs
+  :commands lsp-treemacs-errors-list)
 #+end_src
+* TREEMACS
+#+begin_src emacs-lisp
+(use-package treemacs
+  :defer t
+  :init
+  (with-eval-after-load 'winum
+    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+  :config
+  (progn
+    (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
+          treemacs-deferred-git-apply-delay        0.5
+          treemacs-directory-name-transformer      #'identity
+          treemacs-display-in-side-window          t
+          treemacs-eldoc-display                   'simple
+          treemacs-file-event-delay                2000
+          treemacs-file-extension-regex            treemacs-last-period-regex-value
+          treemacs-file-follow-delay               0.2
+          treemacs-file-name-transformer           #'identity
+          treemacs-follow-after-init               t
+          treemacs-expand-after-init               t
+          treemacs-find-workspace-method           'find-for-file-or-pick-first
+          treemacs-git-command-pipe                ""
+          treemacs-goto-tag-strategy               'refetch-index
+          treemacs-header-scroll-indicators        '(nil . "^^^^^^")
+          treemacs-hide-dot-git-directory          t
+          treemacs-indentation                     2
+          treemacs-indentation-string              " "
+          treemacs-is-never-other-window           nil
+          treemacs-max-git-entries                 5000
+          treemacs-missing-project-action          'ask
+          treemacs-move-files-by-mouse-dragging    t
+          treemacs-move-forward-on-expand          nil
+          treemacs-no-png-images                   nil
+          treemacs-no-delete-other-windows         t
+          treemacs-project-follow-cleanup          nil
+          treemacs-persist-file                    (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+          treemacs-position                        'left
+          treemacs-read-string-input               'from-child-frame
+          treemacs-recenter-distance               0.1
+          treemacs-recenter-after-file-follow      nil
+          treemacs-recenter-after-tag-follow       nil
+          treemacs-recenter-after-project-jump     'always
+          treemacs-recenter-after-project-expand   'on-distance
+          treemacs-litter-directories              '("/node_modules" "/.venv" "/.cask")
+          treemacs-project-follow-into-home        nil
+          treemacs-show-cursor                     nil
+          treemacs-show-hidden-files               t
+          treemacs-silent-filewatch                nil
+          treemacs-silent-refresh                  nil
+          treemacs-sorting                         'alphabetic-asc
+          treemacs-select-when-already-in-treemacs 'move-back
+          treemacs-space-between-root-nodes        t
+          treemacs-tag-follow-cleanup              t
+          treemacs-tag-follow-delay                1.5
+          treemacs-text-scale                      nil
+          treemacs-user-mode-line-format           nil
+          treemacs-user-header-line-format         nil
+          treemacs-wide-toggle-width               70
+          treemacs-width                           35
+          treemacs-width-increment                 1
+          treemacs-width-is-initially-locked       t
+          treemacs-workspace-switch-cleanup        nil)
 
+    ;; The default width and height of the icons is 22 pixels. If you are
+    ;; using a Hi-DPI display, uncomment this to double the icon size.
+    ;;(treemacs-resize-icons 44)
+
+    (treemacs-follow-mode t)
+    (treemacs-filewatch-mode t)
+    (treemacs-fringe-indicator-mode 'always)
+    (when treemacs-python-executable
+      (treemacs-git-commit-diff-mode t))
+
+    (pcase (cons (not (null (executable-find "git")))
+                 (not (null treemacs-python-executable)))
+      (`(t . t)
+       (treemacs-git-mode 'deferred))
+      (`(t . _)
+       (treemacs-git-mode 'simple)))
+
+    (treemacs-hide-gitignored-files-mode nil))
+  :bind
+  (:map global-map
+        ("M-0"       . treemacs-select-window)
+        ("C-x t 1"   . treemacs-delete-other-windows)
+        ("C-x t t"   . treemacs)
+        ("C-x t d"   . treemacs-select-directory)
+        ("C-x t B"   . treemacs-bookmark)
+        ("C-x t C-t" . treemacs-find-file)
+        ("C-x t M-t" . treemacs-find-tag)))
+(use-package treemacs-evil
+  :after (treemacs evil))
+(use-package treemacs-projectile
+  :after (treemacs projectile))
+
+(use-package treemacs-magit
+  :after (treemacs magit))
+#+end_src
 * TOOLS
 
 ** EXPAND REGION
@@ -684,4 +846,6 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
   (use-package lua-mode
     :init
     (setq lua-intent 2))
+
+  (use-package cmake-mode)
 #+end_src
