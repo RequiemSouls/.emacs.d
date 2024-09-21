@@ -681,17 +681,17 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
 
 * TLDR
 #+begin_src emacs-lisp
-(use-package tldr)
+  (use-package tldr)
 #+end_src
 * LSP
 #+begin_src emacs-lisp
-(use-package lsp-mode
-  :hook (lsp-mode . lsp-enable-which-key-integration)
-  :init
-  (setq lsp-keymap-prefix "C-c l"))
-(use-package lsp-treemacs
-  :after treemacs
-  :commands lsp-treemacs-errors-list)
+  (use-package lsp-mode
+    :hook (lsp-mode . lsp-enable-which-key-integration)
+    :init
+    (setq lsp-keymap-prefix "C-c l"))
+  (use-package lsp-treemacs
+    :after treemacs
+    :commands lsp-treemacs-errors-list)
 #+end_src
 * TREEMACS
 #+begin_src emacs-lisp
@@ -863,7 +863,7 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
     (setq lua-intent 2))
 
   (use-package cmake-mode)
-  (add-hook 'prog-mode-hook #'lsp)
+  (add-hook 'c-ts-mode-hook #'lsp)
 #+end_src
 
 * TREE-SITTER
