@@ -507,15 +507,11 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
 
 * HELPFUL
 #+BEGIN_SRC emacs-lisp
-  ;; (use-package helpful
-  ;;   :custom
-  ;;   (counsel-describe-function-function #'helpful-callable)
-  ;;   (counsel-describe-variable-function #'helpful-variable)
-  ;;   :bind
-  ;;   ([remap describe-function] . counsel-describe-function)
-  ;;   ([remap describe-variable] . counsel-describe-variable)
-  ;;   ([remap describe-key] . helpful-key)
-  ;;   ([remap describe-command] . helpful-command))
+  (use-package helpful
+    :bind
+    ([remap describe-key] . helpful-key)
+    ([remap describe-function] . helpful-callback)
+    ([remap describe-command] . helpful-command))
 #+END_SRC
 
 * DIRED
@@ -668,7 +664,7 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
 #+begin_src emacs-lisp
 (use-package tldr)
 #+end_src
-* EGLOT
+* LSP
 #+begin_src emacs-lisp
 (use-package lsp-mode
   :hook (lsp-mode . lsp-enable-which-key-integration)
@@ -848,4 +844,28 @@ if vterm display Chinese not correct. check locale `export LANG=zh_CN.UTF-8`
     (setq lua-intent 2))
 
   (use-package cmake-mode)
+  (add-hook 'prog-mode-hook #'lsp)
+#+end_src
+
+* TREE-SITTER
+#+begin_src emacs-lisp
+  (setq treesit-language-source-alist
+     '((bash "https://github.com/tree-sitter/tree-sitter-bash")
+       (cmake "https://github.com/uyha/tree-sitter-cmake")
+       (c "https://github.com/tree-sitter/tree-sitter-c")
+       (cpp "https://github.com/tree-sitter/tree-sitter-cpp")
+       (lua "https://github.com/tree-sitter-grammars/tree-sitter-lua")
+       (css "https://github.com/tree-sitter/tree-sitter-css")
+       (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+       (go "https://github.com/tree-sitter/tree-sitter-go")
+       (html "https://github.com/tree-sitter/tree-sitter-html")
+       (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+       (json "https://github.com/tree-sitter/tree-sitter-json")
+       (make "https://github.com/alemuller/tree-sitter-make")
+       (markdown "https://github.com/ikatyang/tree-sitter-markdown")
+       (python "https://github.com/tree-sitter/tree-sitter-python")
+       (toml "https://github.com/tree-sitter/tree-sitter-toml")
+       (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
+       (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+       (yaml "https://github.com/ikatyang/tree-sitter-yaml")))
 #+end_src
